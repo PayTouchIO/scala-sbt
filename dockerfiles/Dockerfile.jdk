@@ -6,8 +6,8 @@
 #
 
 # Pull base image
-ARG OPENJDK_VERSION
-FROM openjdk:${OPENJDK_VERSION}
+ARG JDK_VERSION
+FROM adoptopenjdk:${JDK_VERSION}
 
 # Scala
 ARG SCALA_VERSION
@@ -18,7 +18,7 @@ ENV PATH ${PATH}:${SBT_HOME}/bin
 # Install base packages
 RUN apk update && apk upgrade && \
   apk add curl wget bash tree tar && \
-  echo -ne "Image $OPENJDK_VERSION. (`uname -rsv`)\n" >> /root/.built
+  echo -ne "Image $JDK_VERSION. (`uname -rsv`)\n" >> /root/.built
 
 # Install Scala
 ## Piping curl directly in tar
