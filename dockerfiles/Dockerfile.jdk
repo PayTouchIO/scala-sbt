@@ -15,6 +15,13 @@ ARG SBT_VERSION
 ENV SBT_HOME /usr/local/sbt
 ENV PATH ${PATH}:${SBT_HOME}/bin
 
+# Env variables
+ARG SCALA_VERSION
+ARG SBT_VERSION
+
+# Switch working directory
+WORKDIR /app
+
 # Install base packages
 RUN apk update && apk upgrade && \
   apk add curl wget bash tree tar && \
@@ -23,24 +30,39 @@ RUN apk update && apk upgrade && \
 # Install Scala
 ## Piping curl directly in tar
 RUN \
-  curl -fsL https://downloads.typesafe.com/scala/$SCALA_VERSION/scala-$SCALA_VERSION.tgz | tar xfz - -C /root/ && \
-  echo >> /root/.bashrc && \
-  echo "export PATH=~/scala-$SCALA_VERSION/bin:$PATH" >> /root/.bashrc
+  curl -fsL https://downloads.typesafe.com/scala/$SCALA_VERSION/scala-$SCALA_VERSION.tgz | tar xfz - -C /usr/share && \
+  mv /usr/share/scala-$SCALA_VERSION /usr/share/scala && \
+  chown -R root:root /usr/share/scala && \
+  chmod -R 755 /usr/share/scala && \
+  ln -s /usr/share/scala/bin/scala /usr/local/bin/scala
 
 # Install sbt
 RUN \
   mkdir -p "$SBT_HOME" && \
-  wget -qO - --no-check-certificate "https://github.com/sbt/sbt/releases/download/v$SBT_VERSION/sbt-$SBT_VERSION.tgz" | tar xz -C $SBT_HOME --strip-components=1 && \
-  sbt sbtVersion
+  wget -qO - --no-check-certificate "https://github.com/sbt/sbt/releases/download/v$SBT_VERSION/sbt-$SBT_VERSION.tgz" | tar xz -C $SBT_HOME --strip-components=1
 
-# Define working directory
-WORKDIR /app
-
-# Trigger compiler-interface compilation
+# Prepare sbt (warm cache)
 RUN \
-  mkdir -p project src/main/scala && \
-  echo "sbt.version = ${SBT_VERSION}" > project/build.properties && \
+  sbt sbtVersion && \
+  mkdir -p project && \
   echo "scalaVersion := \"${SCALA_VERSION}\"" > build.sbt && \
-  touch src/main/scala/scratch.scala && \
+  echo "sbt.version=${SBT_VERSION}" > project/build.properties && \
+  echo "case object Temp" > Temp.scala && \
   sbt compile && \
-  rm -rf *
+  rm -r project && rm build.sbt && rm Temp.scala && rm -r target
+
+# Link everything into root as well
+# This allows users of this container to choose, whether they want to run the container as sbtuser (non-root) or as root
+RUN \
+  ln -s /app/.cache /root/.cache && \
+  ln -s /app/.ivy2 /root/.ivy2 && \
+  ln -s /app/.sbt /root/.sbt
+
+# Add and use user sbtuser
+RUN addgroup -g 1001 -S sbtuser && \
+    adduser -u 1001 -S sbtuser -G sbtuser
+RUN chown -R sbtuser:sbtuser /opt
+RUN mkdir -p /app && chown -R sbtuser:sbtuser /app
+RUN mkdir /logs && chown -R sbtuser:sbtuser /logs
+
+USER sbtuser
