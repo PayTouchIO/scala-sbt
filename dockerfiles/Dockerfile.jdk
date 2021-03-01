@@ -24,8 +24,9 @@ WORKDIR /app
 
 # Install base packages
 RUN apk update && apk upgrade && \
-  apk add curl wget bash tree tar && \
-  echo -ne "Image $JDK_VERSION. (`uname -rsv`)\n" >> /root/.built
+  apk add curl wget bash tree tar python3 py-pip nodejs nodejs-npm ncurses docker git openssh-client && \
+  echo -ne "Image $JDK_VERSION. (`uname -rsv`)\n" >> /root/.built && \
+  rm -rf /var/cache/apk/*
 
 # Install Scala
 ## Piping curl directly in tar
@@ -50,6 +51,10 @@ RUN \
   echo "case object Temp" > Temp.scala && \
   sbt compile && \
   rm -r project && rm build.sbt && rm Temp.scala && rm -r target
+
+
+# Install awscli
+RUN pip install awscli
 
 # Link everything into root as well
 # This allows users of this container to choose, whether they want to run the container as sbtuser (non-root) or as root
