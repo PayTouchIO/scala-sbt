@@ -7,7 +7,7 @@
 
 # Pull base image
 ARG JDK_VERSION
-FROM adoptopenjdk:${JDK_VERSION}
+FROM adoptopenjdk/openjdk11:${JDK_VERSION}
 
 # Scala
 ARG SCALA_VERSION
